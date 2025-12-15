@@ -1,0 +1,33 @@
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: pz9user
+      POSTGRES_PASSWORD: pz9password
+      POSTGRES_DB: pz9_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pz9user -d pz9_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_DSN: "postgres://pz9user:pz9password@db:5432/pz9_db?sslmode=disable"
+      BCRYPT_COST: 12
+      APP_ADDR: ":8080"
+    
+volumes:
+  postgres_data:
