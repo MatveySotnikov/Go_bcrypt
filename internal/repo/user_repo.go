@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"strings"
+
 	"github.com/MatveySotnikov/Go_bcrypt/internal/core"
+	"github.com/jackc/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -20,10 +23,23 @@ func (r *UserRepo) AutoMigrate() error {
 }
 
 func (r *UserRepo) Create(ctx context.Context, u *core.User) error {
-	if err := r.db.WithContext(ctx).Create(u).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+	err := r.db.WithContext(ctx).Create(u).Error
+
+	if err != nil {
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" {
+				return ErrEmailTaken
+			}
+		}
+
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") ||
+			strings.Contains(err.Error(), "23505") {
 			return ErrEmailTaken
 		}
+
+		// Если это другая ошибка БД, возвращаем ее (что приведет к 500)
 		return err
 	}
 	return nil
